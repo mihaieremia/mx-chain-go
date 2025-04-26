@@ -225,7 +225,7 @@ func (txPool *shardedTxPool) addTx(tx *txcache.WrappedTransaction, cacheID strin
 				return
 			}
 
-			marshaledTx, err := txPool.marshalizer.Marshal(txToBroadcast)
+			marshaledTx, err := txPool.marshalizer.Marshal(txToBroadcast.Tx)
 			if err != nil {
 				log.Warn("shardedTxPool.addTx failed to marshal transaction for broadcast",
 					"hash", txToBroadcast.TxHash,
