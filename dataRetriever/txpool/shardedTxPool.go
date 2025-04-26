@@ -101,6 +101,11 @@ func NewShardedTxPool(args ArgShardedTxPool) (*shardedTxPool, error) {
 		marshalizer:                  args.Marshalizer,
 	}
 
+	shardedTxPoolObject.messenger.CreateTopic(ApprovedTransactionTopic, true)
+	if err != nil {
+		return nil, err
+	}
+
 	return shardedTxPoolObject, nil
 }
 
