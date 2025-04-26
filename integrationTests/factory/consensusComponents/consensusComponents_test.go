@@ -51,6 +51,7 @@ func TestConsensusComponents_Close_ShouldWork(t *testing.T) {
 		managedCoreComponents,
 		managedBootstrapComponents,
 		managedCryptoComponents,
+		managedNetworkComponents,
 	)
 	require.Nil(t, err)
 	managedStateComponents, err := nr.CreateManagedStateComponents(managedCoreComponents, managedDataComponents, managedStatusCoreComponents)

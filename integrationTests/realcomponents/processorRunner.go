@@ -237,6 +237,7 @@ func (pr *ProcessorRunner) createDataComponents(tb testing.TB) {
 		CreateTrieEpochRootHashStorer: false,
 		NodeProcessingMode:            common.Normal,
 		FlagsConfigs:                  config.ContextFlagsConfig{},
+		Messenger:                     pr.NetworkComponents.NetworkMessenger(),
 	}
 
 	dataFactory, err := factoryData.NewDataComponentsFactory(argsData)

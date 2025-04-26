@@ -359,6 +359,7 @@ func (e *epochStartBootstrap) Bootstrap() (Parameters, error) {
 			ShardCoordinator: e.shardCoordinator,
 			Marshalizer:      e.coreComponentsHolder.InternalMarshalizer(),
 			PathManager:      e.coreComponentsHolder.PathHandler(),
+			Messenger:        e.mainMessenger,
 		},
 	)
 	if err != nil {

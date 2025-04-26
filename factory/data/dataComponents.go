@@ -14,6 +14,7 @@ import (
 	"github.com/multiversx/mx-chain-go/dataRetriever/provider"
 	"github.com/multiversx/mx-chain-go/errors"
 	"github.com/multiversx/mx-chain-go/factory"
+	"github.com/multiversx/mx-chain-go/p2p"
 	"github.com/multiversx/mx-chain-go/sharding"
 	storageFactory "github.com/multiversx/mx-chain-go/storage/factory"
 	logger "github.com/multiversx/mx-chain-logger-go"
@@ -31,6 +32,7 @@ type DataComponentsFactoryArgs struct {
 	CurrentEpoch                  uint32
 	CreateTrieEpochRootHashStorer bool
 	NodeProcessingMode            common.NodeProcessingMode
+	Messenger                     p2p.Messenger
 }
 
 type dataComponentsFactory struct {
@@ -44,6 +46,7 @@ type dataComponentsFactory struct {
 	currentEpoch                  uint32
 	createTrieEpochRootHashStorer bool
 	nodeProcessingMode            common.NodeProcessingMode
+	Messenger                     p2p.Messenger
 }
 
 // dataComponents struct holds the data components
@@ -82,6 +85,7 @@ func NewDataComponentsFactory(args DataComponentsFactoryArgs) (*dataComponentsFa
 		flagsConfig:                   args.FlagsConfigs,
 		nodeProcessingMode:            args.NodeProcessingMode,
 		crypto:                        args.Crypto,
+		Messenger:                     args.Messenger,
 	}, nil
 }
 
@@ -104,6 +108,7 @@ func (dcf *dataComponentsFactory) Create() (*dataComponents, error) {
 		ShardCoordinator: dcf.shardCoordinator,
 		Marshalizer:      dcf.core.InternalMarshalizer(),
 		PathManager:      dcf.core.PathHandler(),
+		Messenger:        dcf.Messenger,
 	}
 	datapool, err = dataRetrieverFactory.NewDataPoolFromConfig(dataPoolArgs)
 	if err != nil {

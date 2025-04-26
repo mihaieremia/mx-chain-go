@@ -4,9 +4,12 @@ import (
 	"strconv"
 	"sync"
 
+	p2p "github.com/multiversx/mx-chain-communication-go/p2p"
 	"github.com/multiversx/mx-chain-core-go/core"
+	"github.com/multiversx/mx-chain-core-go/core/check"
 	"github.com/multiversx/mx-chain-core-go/core/counting"
 	"github.com/multiversx/mx-chain-core-go/data"
+	"github.com/multiversx/mx-chain-core-go/marshal"
 	"github.com/multiversx/mx-chain-go/dataRetriever"
 	"github.com/multiversx/mx-chain-go/process"
 	"github.com/multiversx/mx-chain-go/storage"
@@ -18,6 +21,12 @@ var _ dataRetriever.ShardedDataCacherNotifier = (*shardedTxPool)(nil)
 
 var log = logger.GetOrCreate("txpool")
 
+// ApprovedTransactionTopic defines the topic for broadcasting validated transactions added to the pool
+const ApprovedTransactionTopic = "mempool_tx"
+
+// ApprovedTransactionPipe defines the pipe name used for broadcasting validated transactions
+const ApprovedTransactionPipe = "mempool_tx_pipe"
+
 // shardedTxPool holds transaction caches organised by source & destination shard
 type shardedTxPool struct {
 	mutexBackingMap              sync.RWMutex
@@ -28,6 +37,8 @@ type shardedTxPool struct {
 	configPrototypeSourceMe      txcache.ConfigSourceMe
 	selfShardID                  uint32
 	host                         txcache.MempoolHost
+	messenger                    p2p.Messenger
+	marshalizer                  marshal.Marshalizer
 }
 
 type txPoolShard struct {
@@ -86,6 +97,8 @@ func NewShardedTxPool(args ArgShardedTxPool) (*shardedTxPool, error) {
 		configPrototypeSourceMe:      configPrototypeSourceMe,
 		selfShardID:                  args.SelfShardID,
 		host:                         mempoolHost,
+		messenger:                    args.Messenger,
+		marshalizer:                  args.Marshalizer,
 	}
 
 	return shardedTxPoolObject, nil
@@ -200,6 +213,34 @@ func (txPool *shardedTxPool) addTx(tx *txcache.WrappedTransaction, cacheID strin
 	_, added := cache.AddTx(tx)
 	if added {
 		txPool.onAdded(tx.TxHash, tx)
+
+		// Broadcast the newly added transaction
+		go func(txToBroadcast *txcache.WrappedTransaction) {
+			if check.IfNil(txPool.messenger) {
+				log.Warn("shardedTxPool.addTx cannot broadcast approved tx, messenger is nil")
+				return
+			}
+			if check.IfNil(txPool.marshalizer) {
+				log.Warn("shardedTxPool.addTx cannot broadcast approved tx, marshalizer is nil")
+				return
+			}
+
+			marshaledTx, err := txPool.marshalizer.Marshal(txToBroadcast)
+			if err != nil {
+				log.Warn("shardedTxPool.addTx failed to marshal transaction for broadcast",
+					"hash", txToBroadcast.TxHash,
+					"error", err)
+				return
+			}
+
+			// Using BroadcastOnChannel assuming a specific pipe might be needed later,
+			// similar to how txsSender works.
+			txPool.messenger.BroadcastOnChannel(ApprovedTransactionPipe, ApprovedTransactionTopic, marshaledTx)
+			log.Trace("shardedTxPool.addTx broadcasted approved transaction",
+				"hash", txToBroadcast.TxHash,
+				"topic", ApprovedTransactionTopic,
+				"pipe", ApprovedTransactionPipe)
+		}(tx)
 	}
 }
 

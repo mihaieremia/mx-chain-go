@@ -3,6 +3,7 @@ package txpool
 import (
 	"fmt"
 
+	p2p "github.com/multiversx/mx-chain-communication-go/p2p"
 	"github.com/multiversx/mx-chain-core-go/core/check"
 	"github.com/multiversx/mx-chain-core-go/marshal"
 	"github.com/multiversx/mx-chain-go/dataRetriever"
@@ -14,6 +15,7 @@ type ArgShardedTxPool struct {
 	Config         storageunit.CacheConfig
 	TxGasHandler   txGasHandler
 	Marshalizer    marshal.Marshalizer
+	Messenger      p2p.Messenger
 	NumberOfShards uint32
 	SelfShardID    uint32
 }
@@ -42,6 +44,9 @@ func (args *ArgShardedTxPool) verify() error {
 	}
 	if check.IfNil(args.Marshalizer) {
 		return fmt.Errorf("%w: Marshalizer is not valid", dataRetriever.ErrNilMarshalizer)
+	}
+	if check.IfNil(args.Messenger) {
+		return fmt.Errorf("%w: Messenger is not valid", dataRetriever.ErrNilMessenger)
 	}
 	if args.NumberOfShards == 0 {
 		return fmt.Errorf("%w: NumberOfShards is not valid", dataRetriever.ErrCacheConfigInvalidSharding)

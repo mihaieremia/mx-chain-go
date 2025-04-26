@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	p2p "github.com/multiversx/mx-chain-communication-go/p2p"
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/check"
 	"github.com/multiversx/mx-chain-core-go/marshal"
@@ -38,6 +39,7 @@ type ArgsDataPool struct {
 	ShardCoordinator sharding.Coordinator
 	Marshalizer      marshal.Marshalizer
 	PathManager      storage.PathManagerHandler
+	Messenger        p2p.Messenger
 }
 
 // NewDataPoolFromConfig will return a new instance of a PoolsHolder
@@ -59,16 +61,21 @@ func NewDataPoolFromConfig(args ArgsDataPool) (dataRetriever.PoolsHolder, error)
 	if check.IfNil(args.PathManager) {
 		return nil, dataRetriever.ErrNilPathManager
 	}
+	if check.IfNil(args.Messenger) {
+		return nil, dataRetriever.ErrNilMessenger
+	}
 
 	mainConfig := args.Config
 
-	txPool, err := txpool.NewShardedTxPool(txpool.ArgShardedTxPool{
+	txPoolArgs := txpool.ArgShardedTxPool{
 		Config:         factory.GetCacherFromConfig(mainConfig.TxDataPool),
 		TxGasHandler:   args.EconomicsData,
 		Marshalizer:    args.Marshalizer,
+		Messenger:      args.Messenger,
 		NumberOfShards: args.ShardCoordinator.NumberOfShards(),
 		SelfShardID:    args.ShardCoordinator.SelfId(),
-	})
+	}
+	txPool, err := txpool.NewShardedTxPool(txPoolArgs)
 	if err != nil {
 		return nil, fmt.Errorf("%w while creating the cache for the transactions", err)
 	}

@@ -48,6 +48,7 @@ func TestDataComponents_Create_Close_ShouldWork(t *testing.T) {
 		managedCoreComponents,
 		managedBootstrapComponents,
 		managedCryptoComponents,
+		managedNetworkComponents,
 	)
 	require.Nil(t, err)
 	require.NotNil(t, managedDataComponents)
