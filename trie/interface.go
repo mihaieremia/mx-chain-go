@@ -48,6 +48,8 @@ type node interface {
 	collectLeavesForMigration(migrationArgs vmcommon.ArgsMigrateDataTrieLeaves, db common.TrieStorageInteractor, keyBuilder common.KeyBuilder) (bool, error)
 
 	commitDirty(level byte, maxTrieLevelInMemory uint, originDb common.TrieStorageInteractor, targetDb common.BaseStorer) error
+	commitDirtyConcurrent(level byte, maxTrieLevelInMemory uint, originDb common.TrieStorageInteractor, targetDb common.BaseStorer, wg *sync.WaitGroup, errChan chan<- error)
+	hashAndCommitDirty(level byte, maxTrieLevelInMemory uint, targetDb common.BaseStorer) ([]byte, error)
 	commitSnapshot(originDb common.TrieStorageInteractor, leavesChan chan core.KeyValueHolder, missingNodesChan chan []byte, ctx context.Context, stats common.TrieStatisticsHandler, idleProvider IdleNodeProvider, depthLevel int) error
 
 	getMarshalizer() marshal.Marshalizer

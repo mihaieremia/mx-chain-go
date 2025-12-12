@@ -134,6 +134,51 @@ func (ln *leafNode) commitDirty(_ byte, _ uint, _ common.TrieStorageInteractor, 
 	return err
 }
 
+// commitDirtyConcurrent is the concurrent-safe wrapper for commitDirty
+func (ln *leafNode) commitDirtyConcurrent(_ byte, _ uint, _ common.TrieStorageInteractor, targetDb common.BaseStorer, wg *sync.WaitGroup, errChan chan<- error) {
+	defer wg.Done()
+
+	err := ln.commitDirty(0, 0, nil, targetDb)
+	if err != nil {
+		select {
+		case errChan <- err:
+		default:
+		}
+	}
+}
+
+// hashAndCommitDirty performs single-pass hash computation and storage write.
+// For leaf nodes: compute hash if needed, write to DB, return hash.
+func (ln *leafNode) hashAndCommitDirty(_ byte, _ uint, targetDb common.BaseStorer) ([]byte, error) {
+	err := ln.isEmptyOrNil()
+	if err != nil {
+		return nil, fmt.Errorf("hashAndCommitDirty error %w", err)
+	}
+
+	// If not dirty, just return existing hash
+	if !ln.dirty {
+		return ln.hash, nil
+	}
+
+	// Compute hash if not already computed
+	if len(ln.hash) == 0 {
+		hash, err := hashChildrenAndNode(ln)
+		if err != nil {
+			return nil, err
+		}
+		ln.hash = hash
+	}
+
+	// Write to storage
+	ln.dirty = false
+	_, err = encodeNodeAndCommitToDB(ln, targetDb)
+	if err != nil {
+		return nil, err
+	}
+
+	return ln.hash, nil
+}
+
 func (ln *leafNode) commitSnapshot(
 	db common.TrieStorageInteractor,
 	leavesChan chan core.KeyValueHolder,

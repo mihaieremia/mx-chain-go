@@ -42,10 +42,21 @@ func (pc *persisterCreator) Create(path string) (storage.Persister, error) {
 func (pc *persisterCreator) CreateBasePersister(path string) (storage.Persister, error) {
 	var dbType = storageunit.DBType(pc.conf.Type)
 
+	// Calculate effective delay in seconds for storage-go library
+	// BatchDelayMilliseconds takes precedence if set
+	effectiveDelaySeconds := pc.conf.BatchDelaySeconds
+	if pc.conf.BatchDelayMilliseconds > 0 {
+		// Convert milliseconds to seconds, minimum 1 (library requires > 0)
+		effectiveDelaySeconds = pc.conf.BatchDelayMilliseconds / 1000
+		if effectiveDelaySeconds < 1 {
+			effectiveDelaySeconds = 1
+		}
+	}
+
 	argsDB := factory.ArgDB{
 		DBType:            dbType,
 		Path:              path,
-		BatchDelaySeconds: pc.conf.BatchDelaySeconds,
+		BatchDelaySeconds: effectiveDelaySeconds,
 		MaxBatchSize:      pc.conf.MaxBatchSize,
 		MaxOpenFiles:      pc.conf.MaxOpenFiles,
 	}

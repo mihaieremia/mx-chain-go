@@ -8,6 +8,13 @@ type SystemSmartContractsConfig struct {
 	DelegationManagerSystemSCConfig DelegationManagerSystemSCConfig
 	DelegationSystemSCConfig        DelegationSystemSCConfig
 	SoftAuctionConfig               SoftAuctionConfig
+	CLOBSystemSCConfig              CLOBSystemSCConfig
+}
+
+// CLOBSystemSCConfig defines a set of constants to initialize the CLOB system smart contract
+type CLOBSystemSCConfig struct {
+	Enabled      bool
+	OwnerAddress string
 }
 
 // StakingSystemSCConfig will hold the staking system smart contract settings

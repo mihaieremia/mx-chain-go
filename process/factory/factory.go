@@ -32,3 +32,6 @@ var WasmVirtualMachine = []byte{5, 0}
 
 // InternalTestingVM is a byte array identified for the smart contract address created for the testing VM
 var InternalTestingVM = []byte{255, 255}
+
+// Note: CLOB is now registered as a system smart contract (like ESDT, Governance, etc.)
+// and is accessed through vm.CLOBSCAddress, not as a separate VM

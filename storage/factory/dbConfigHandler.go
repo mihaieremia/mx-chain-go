@@ -49,11 +49,12 @@ func (dh *dbConfigHandler) GetDBConfig(path string) (*config.DBConfig, error) {
 	empty := checkIfDirIsEmpty(path)
 	if !empty {
 		dbConfig := &config.DBConfig{
-			Type:              defaultType,
-			BatchDelaySeconds: dh.conf.BatchDelaySeconds,
-			MaxBatchSize:      dh.conf.MaxBatchSize,
-			MaxOpenFiles:      dh.conf.MaxOpenFiles,
-			UseTmpAsFilePath:  dh.conf.UseTmpAsFilePath,
+			Type:                   defaultType,
+			BatchDelaySeconds:      dh.conf.BatchDelaySeconds,
+			BatchDelayMilliseconds: dh.conf.BatchDelayMilliseconds,
+			MaxBatchSize:           dh.conf.MaxBatchSize,
+			MaxOpenFiles:           dh.conf.MaxOpenFiles,
+			UseTmpAsFilePath:       dh.conf.UseTmpAsFilePath,
 		}
 
 		log.Debug("GetDBConfig: loaded default db config",
@@ -76,7 +77,9 @@ func readCorrectConfigurationFromToml(dbConfig *config.DBConfig, filePath string
 		return err
 	}
 
-	isInvalidConfig := len(dbConfig.Type) == 0 || dbConfig.MaxBatchSize <= 0 || dbConfig.BatchDelaySeconds <= 0 || dbConfig.MaxOpenFiles <= 0
+	// Allow either BatchDelaySeconds OR BatchDelayMilliseconds (for 200ms sovereign blocks)
+	hasValidBatchDelay := dbConfig.BatchDelaySeconds > 0 || dbConfig.BatchDelayMilliseconds > 0
+	isInvalidConfig := len(dbConfig.Type) == 0 || dbConfig.MaxBatchSize <= 0 || !hasValidBatchDelay || dbConfig.MaxOpenFiles <= 0
 	if isInvalidConfig {
 		return errInvalidConfiguration
 	}

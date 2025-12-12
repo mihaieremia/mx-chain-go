@@ -21,14 +21,24 @@ type HeadersPoolConfig struct {
 
 // DBConfig will map the database configuration
 type DBConfig struct {
-	FilePath            string
-	Type                string
-	BatchDelaySeconds   int
-	MaxBatchSize        int
-	MaxOpenFiles        int
-	UseTmpAsFilePath    bool
-	ShardIDProviderType string
-	NumShards           int32
+	FilePath               string
+	Type                   string
+	BatchDelaySeconds      int
+	BatchDelayMilliseconds int // Takes precedence over BatchDelaySeconds if > 0 (for 200ms blocks)
+	MaxBatchSize           int
+	MaxOpenFiles           int
+	UseTmpAsFilePath       bool
+	ShardIDProviderType    string
+	NumShards              int32
+}
+
+// GetEffectiveBatchDelayMs returns the effective batch delay in milliseconds.
+// BatchDelayMilliseconds takes precedence if set, otherwise converts BatchDelaySeconds.
+func (c *DBConfig) GetEffectiveBatchDelayMs() int {
+	if c.BatchDelayMilliseconds > 0 {
+		return c.BatchDelayMilliseconds
+	}
+	return c.BatchDelaySeconds * 1000
 }
 
 // StorageConfig will map the storage unit configuration

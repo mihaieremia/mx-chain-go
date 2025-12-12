@@ -209,6 +209,67 @@ func (en *extensionNode) commitDirty(level byte, maxTrieLevelInMemory uint, orig
 	return nil
 }
 
+// commitDirtyConcurrent is a concurrent-safe wrapper for commitDirty.
+// Used when parent node spawns goroutines for children.
+func (en *extensionNode) commitDirtyConcurrent(level byte, maxTrieLevelInMemory uint, originDb common.TrieStorageInteractor, targetDb common.BaseStorer, wg *sync.WaitGroup, errChan chan<- error) {
+	defer wg.Done()
+
+	err := en.commitDirty(level, maxTrieLevelInMemory, originDb, targetDb)
+	if err != nil {
+		select {
+		case errChan <- err:
+		default:
+		}
+	}
+}
+
+// hashAndCommitDirty performs single-pass hash computation and storage write.
+// This eliminates the separate setRootHash pass for better performance.
+func (en *extensionNode) hashAndCommitDirty(level byte, maxTrieLevelInMemory uint, targetDb common.BaseStorer) ([]byte, error) {
+	level++
+	err := en.isEmptyOrNil()
+	if err != nil {
+		return nil, fmt.Errorf("hashAndCommitDirty error %w", err)
+	}
+
+	if !en.dirty {
+		return en.hash, nil
+	}
+
+	// Process child first (bottom-up DFS)
+	if en.child != nil {
+		childHash, err := en.child.hashAndCommitDirty(level, maxTrieLevelInMemory, targetDb)
+		if err != nil {
+			return nil, err
+		}
+		en.EncodedChild = childHash
+	}
+
+	// Compute hash if not already set
+	if len(en.hash) == 0 {
+		hash, err := encodeNodeAndGetHash(en)
+		if err != nil {
+			return nil, err
+		}
+		en.hash = hash
+	}
+
+	// Write to storage
+	en.dirty = false
+	_, err = encodeNodeAndCommitToDB(en, targetDb)
+	if err != nil {
+		return nil, err
+	}
+
+	// Collapse at memory boundary
+	if uint(level) == maxTrieLevelInMemory {
+		log.Trace("collapse extension node on commit")
+		en.child = nil
+	}
+
+	return en.hash, nil
+}
+
 func (en *extensionNode) commitSnapshot(
 	db common.TrieStorageInteractor,
 	leavesChan chan core.KeyValueHolder,

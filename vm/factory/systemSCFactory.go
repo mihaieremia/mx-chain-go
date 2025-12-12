@@ -13,6 +13,7 @@ import (
 	"github.com/multiversx/mx-chain-go/sharding"
 	"github.com/multiversx/mx-chain-go/vm"
 	"github.com/multiversx/mx-chain-go/vm/systemSmartContracts"
+	"github.com/multiversx/mx-chain-go/vm/systemSmartContracts/clob"
 	logger "github.com/multiversx/mx-chain-logger-go"
 )
 
@@ -186,6 +187,23 @@ func (scf *systemSCFactory) createStakingContract() (vm.SystemSmartContract, err
 	staking, err := systemSmartContracts.NewStakingSmartContract(argsStaking)
 	return staking, err
 }
+
+func (scf *systemSCFactory) createCLOBContract() (vm.SystemSmartContract, error) {
+	ownerAddress, err := scf.addressPubKeyConverter.Decode(scf.systemSCConfig.CLOBSystemSCConfig.OwnerAddress)
+	if err != nil {
+		return nil, fmt.Errorf("%w for CLOBSystemSCConfig.OwnerAddress in systemSCFactory", vm.ErrInvalidAddress)
+	}
+
+	argsCLOB := clob.ArgsNewCLOBSmartContract{
+		Eei:       scf.systemEI,
+		GasCost:   scf.gasCost,
+		SelfAddr:  vm.CLOBSCAddress,
+		OwnerAddr: ownerAddress,
+	}
+	clobSC, err := clob.NewCLOBSmartContract(argsCLOB)
+	return clobSC, err
+}
+
 
 func (scf *systemSCFactory) createValidatorContract() (vm.SystemSmartContract, error) {
 	args := systemSmartContracts.ArgsValidatorSmartContract{
@@ -368,6 +386,17 @@ func (scf *systemSCFactory) Create() (vm.SystemSCContainer, error) {
 	}
 
 	err = scf.systemSCsContainer.Add(vm.FirstDelegationSCAddress, delegation)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create CLOB system contract
+	clobSC, err := scf.createCLOBContract()
+	if err != nil {
+		return nil, err
+	}
+
+	err = scf.systemSCsContainer.Add(vm.CLOBSCAddress, clobSC)
 	if err != nil {
 		return nil, err
 	}

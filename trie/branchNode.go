@@ -290,6 +290,129 @@ func (bn *branchNode) commitDirty(level byte, maxTrieLevelInMemory uint, originD
 	return nil
 }
 
+// commitDirtyConcurrent is a concurrent-safe wrapper for commitDirty.
+// Used when parent node spawns goroutines for children.
+func (bn *branchNode) commitDirtyConcurrent(level byte, maxTrieLevelInMemory uint, originDb common.TrieStorageInteractor, targetDb common.BaseStorer, wg *sync.WaitGroup, errChan chan<- error) {
+	defer wg.Done()
+
+	err := bn.commitDirty(level, maxTrieLevelInMemory, originDb, targetDb)
+	if err != nil {
+		select {
+		case errChan <- err:
+		default:
+		}
+	}
+}
+
+// hashAndCommitDirty performs single-pass hash computation and storage write.
+// This eliminates the separate setRootHash pass for better performance.
+// For branch nodes at root level, children are processed concurrently.
+func (bn *branchNode) hashAndCommitDirty(level byte, maxTrieLevelInMemory uint, targetDb common.BaseStorer) ([]byte, error) {
+	level++
+	err := bn.isEmptyOrNil()
+	if err != nil {
+		return nil, fmt.Errorf("hashAndCommitDirty error %w", err)
+	}
+
+	if !bn.dirty {
+		return bn.hash, nil
+	}
+
+	// Count dirty children for concurrent processing
+	dirtyCount := 0
+	for i := range bn.children {
+		if bn.children[i] != nil && bn.children[i].isDirty() {
+			dirtyCount++
+		}
+	}
+
+	// Process children - use concurrent processing for multiple dirty children at root
+	if dirtyCount > 1 && level == 1 {
+		// Concurrent processing at root level
+		var wg sync.WaitGroup
+		errChan := make(chan error, dirtyCount)
+		childHashes := make([][]byte, nrOfChildren)
+
+		for i := range bn.children {
+			if bn.children[i] == nil {
+				continue
+			}
+			if !bn.children[i].isDirty() {
+				childHashes[i] = bn.children[i].getHash()
+				continue
+			}
+
+			wg.Add(1)
+			go func(idx int) {
+				defer wg.Done()
+				hash, err := bn.children[idx].hashAndCommitDirty(level, maxTrieLevelInMemory, targetDb)
+				if err != nil {
+					select {
+					case errChan <- err:
+					default:
+					}
+					return
+				}
+				childHashes[idx] = hash
+			}(i)
+		}
+
+		wg.Wait()
+		close(errChan)
+
+		// Check for errors
+		for err := range errChan {
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// Update encoded children
+		for i := range childHashes {
+			if childHashes[i] != nil {
+				bn.EncodedChildren[i] = childHashes[i]
+			}
+		}
+	} else {
+		// Sequential processing for few children or deeper levels
+		for i := range bn.children {
+			if bn.children[i] == nil {
+				continue
+			}
+
+			childHash, err := bn.children[i].hashAndCommitDirty(level, maxTrieLevelInMemory, targetDb)
+			if err != nil {
+				return nil, err
+			}
+			bn.EncodedChildren[i] = childHash
+		}
+	}
+
+	// Compute hash if not already set
+	if len(bn.hash) == 0 {
+		hash, err := encodeNodeAndGetHash(bn)
+		if err != nil {
+			return nil, err
+		}
+		bn.hash = hash
+	}
+
+	// Write to storage
+	bn.dirty = false
+	_, err = encodeNodeAndCommitToDB(bn, targetDb)
+	if err != nil {
+		return nil, err
+	}
+
+	// Collapse at memory boundary
+	if uint(level) == maxTrieLevelInMemory {
+		log.Trace("collapse branch node on commit")
+		bn.removeChildrenPointers()
+	}
+
+	return bn.hash, nil
+}
+
 func (bn *branchNode) commitSnapshot(
 	db common.TrieStorageInteractor,
 	leavesChan chan core.KeyValueHolder,

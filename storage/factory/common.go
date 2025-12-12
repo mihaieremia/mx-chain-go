@@ -20,10 +20,21 @@ func GetCacherFromConfig(cfg config.CacheConfig) storageunit.CacheConfig {
 
 // GetDBFromConfig will return the db config needed for storage unit from a config came from the toml file
 func GetDBFromConfig(cfg config.DBConfig) storageunit.DBConfig {
+	// Calculate effective delay in seconds for storage-go library
+	// BatchDelayMilliseconds takes precedence if set
+	effectiveDelaySeconds := cfg.BatchDelaySeconds
+	if cfg.BatchDelayMilliseconds > 0 {
+		// Convert milliseconds to seconds, minimum 1 (library requires > 0)
+		effectiveDelaySeconds = cfg.BatchDelayMilliseconds / 1000
+		if effectiveDelaySeconds < 1 {
+			effectiveDelaySeconds = 1
+		}
+	}
+
 	return storageunit.DBConfig{
 		Type:              storageunit.DBType(cfg.Type),
 		MaxBatchSize:      cfg.MaxBatchSize,
-		BatchDelaySeconds: cfg.BatchDelaySeconds,
+		BatchDelaySeconds: effectiveDelaySeconds,
 		MaxOpenFiles:      cfg.MaxOpenFiles,
 	}
 }

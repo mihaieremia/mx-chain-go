@@ -83,6 +83,10 @@ func createMockNewSystemScFactoryArgs() ArgsNewSystemSCFactory {
 				MaxTopUp:              "32000000",
 				MaxNumberOfIterations: 100000,
 			},
+			CLOBSystemSCConfig: config.CLOBSystemSCConfig{
+				Enabled:      true,
+				OwnerAddress: "3132333435363738393031323334353637383930313233343536373839303234",
+			},
 		},
 		AddressPubKeyConverter: &testscommon.PubkeyConverterMock{},
 		ShardCoordinator:       &mock.ShardCoordinatorStub{},
@@ -274,9 +278,9 @@ func TestSystemSCFactory_Create(t *testing.T) {
 	scFactory, _ := NewSystemSCFactory(arguments)
 
 	container, err := scFactory.Create()
-	assert.Nil(t, err)
+	require.Nil(t, err)
 	require.NotNil(t, container)
-	assert.Equal(t, 6, container.Len())
+	assert.Equal(t, 7, container.Len()) // 6 original + CLOB
 }
 
 func TestSystemSCFactory_CreateForGenesis(t *testing.T) {
@@ -286,7 +290,7 @@ func TestSystemSCFactory_CreateForGenesis(t *testing.T) {
 	scFactory, _ := NewSystemSCFactory(arguments)
 
 	container, err := scFactory.CreateForGenesis()
-	assert.Nil(t, err)
+	require.Nil(t, err)
 	assert.Equal(t, 4, container.Len())
 }
 

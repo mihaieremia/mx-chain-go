@@ -24,5 +24,8 @@ var DelegationManagerSCAddress = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0
 // CLOBSCAddress is the hard-coded address for the central limit order book smart contract
 var CLOBSCAddress = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 255, 255}
 
+// FirstCLOBSCAddress is the hard-coded address for the first per-pair CLOB contract, others follow sequentially
+var FirstCLOBSCAddress = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 255, 255, 255}
+
 // FirstDelegationSCAddress is the hard-coded address for the first delegation contract, the other will follow
 var FirstDelegationSCAddress = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 255, 255, 255}

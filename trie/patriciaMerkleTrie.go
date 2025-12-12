@@ -230,7 +230,8 @@ func (tr *patriciaMerkleTrie) getRootHash() ([]byte, error) {
 	return tr.root.getHash(), nil
 }
 
-// Commit adds all the dirty nodes to the database
+// Commit adds all the dirty nodes to the database using single-pass hash+commit.
+// This is optimized for 200ms sovereign blocks by eliminating the separate setRootHash pass.
 func (tr *patriciaMerkleTrie) Commit() error {
 	tr.mutOperation.Lock()
 	defer tr.mutOperation.Unlock()
@@ -243,21 +244,22 @@ func (tr *patriciaMerkleTrie) Commit() error {
 		log.Trace("trying to commit clean trie", "root", tr.root.getHash())
 		return nil
 	}
-	err := tr.root.setRootHash()
-	if err != nil {
-		return err
-	}
 
 	tr.oldRoot = make([]byte, 0)
 	tr.oldHashes = make([][]byte, 0)
 
 	if log.GetLevel() == logger.LogTrace {
-		log.Trace("started committing trie", "trie", tr.root.getHash())
+		log.Trace("started committing trie (single-pass)")
 	}
 
-	err = tr.root.commitDirty(0, tr.maxTrieLevelInMemory, tr.trieStorage, tr.trieStorage)
+	// Single-pass: hash AND commit in one DFS traversal
+	_, err := tr.root.hashAndCommitDirty(0, tr.maxTrieLevelInMemory, tr.trieStorage)
 	if err != nil {
 		return err
+	}
+
+	if log.GetLevel() == logger.LogTrace {
+		log.Trace("committed trie", "root", tr.root.getHash())
 	}
 
 	return nil
